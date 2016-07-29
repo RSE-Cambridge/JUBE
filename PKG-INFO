@@ -1,0 +1,26 @@
+Metadata-Version: 1.1
+Name: JUBE
+Version: 2.1.1
+Summary: JUBE Benchmarking Environment
+Home-page: www.fz-juelich.de/jube
+Author: Forschungszentrum Juelich GmbH
+Author-email: jube.jsc@fz-juelich.de
+License: GPLv3
+Download-URL: www.fz-juelich.de/jube
+Description: Automating benchmarks is important for reproducibility and hence comparability which is the major intent when performing benchmarks. Furthermore managing different combinations of parameters is error-prone and often results in significant amounts work especially if the parameter space gets large.
+        In order to alleviate these problems JUBE helps performing and analyzing benchmarks in a systematic way. It allows custom work flows to be able to adapt to new architectures.
+        For each benchmark application the benchmark data is written out in a certain format that enables JUBE to deduct the desired information. This data can be parsed by automatic pre- and post-processing scripts that draw information, and store it more densely for manual interpretation.
+        The JUBE benchmarking environment provides a script based framework to easily create benchmark sets, run those sets on different computer systems and evaluate the results. It is actively developed by the Juelich Supercomputing Centre of Forschungszentrum Juelich, Germany.
+Keywords: JUBE Benchmarking Environment
+Platform: Linux
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Topic :: System :: Monitoring
+Classifier: Topic :: System :: Benchmark
+Classifier: Topic :: Software Development :: Testing
