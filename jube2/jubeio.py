@@ -436,6 +436,8 @@ class XMLParser(object):
                         value = pattern_etree.text
                         if value is not None:
                             value = value.strip()
+                        else:
+                            value = ""
                         value = jube2.util.convert_type(pattern_type, value)
                         analyse_result[analyser_name][step_name][
                             wp_id][pattern_name] = value
@@ -572,9 +574,11 @@ class XMLParser(object):
                                                              "name")
                 if env_etree.tag == "env":
                     if env_etree.text is not None:
-                        set_env[env_name] = env_etree.text
+                        set_env[env_name] = env_etree.text.strip()
                         # string repr must be evaluated
-                        if (set_env[env_name][0] == "'") and \
+                        if (set_env[env_name][0] == "'") or \
+                            ((set_env[env_name][0] == "u") and
+                             (set_env[env_name][1] == "'")) and \
                            (set_env[env_name][-1] == "'"):
                             set_env[env_name] = eval(set_env[env_name])
                 elif env_etree.tag == "nonenv":
@@ -758,6 +762,7 @@ class XMLParser(object):
             alt_work_dir = alt_work_dir.strip()
         export = etree_step.get("export", "false").strip().lower() == "true"
         max_wps = etree_step.get("max_async", "0").strip()
+        active = etree_step.get("active", "true").strip()
         shared_name = etree_step.get("shared")
         if shared_name is not None:
             shared_name = shared_name.strip()
@@ -768,7 +773,7 @@ class XMLParser(object):
                      tmp.split(jube2.conf.DEFAULT_SEPARATOR) if val.strip())
 
         step = jube2.step.Step(name, depend, iterations, alt_work_dir,
-                               shared_name, export, max_wps)
+                               shared_name, export, max_wps, active)
         for element in etree_step:
             XMLParser._check_tag(element, valid_tags)
             if element.tag == "do":
@@ -946,12 +951,10 @@ class XMLParser(object):
             if colw is not None:
                 colw = int(colw)
             title = element.get("title")
-            null_value = element.get("null_value", "").strip()
             format_string = element.get("format")
             if format_string is not None:
                 format_string = format_string.strip()
-            table.add_column(
-                column_name, colw, format_string, title, null_value)
+            table.add_column(column_name, colw, format_string, title)
         return table
 
     @staticmethod
@@ -993,11 +996,10 @@ class XMLParser(object):
             if key_name == "":
                 raise ValueError("Empty <key> not allowed")
             title = element.get("title")
-            null_value = element.get("null_value", "").strip()
             format_string = element.get("format")
             if format_string is not None:
                 format_string = format_string.strip()
-            syslog_result.add_key(key_name, format_string, title, null_value)
+            syslog_result.add_key(key_name, format_string, title)
         return syslog_result
 
     @staticmethod
@@ -1220,12 +1222,16 @@ class XMLParser(object):
                     pattern_mode, name))
             content_type = pattern.get("type", default="string").strip()
             unit = pattern.get("unit", "").strip()
+            default = pattern.get("default")
+            if default is not None:
+                default = default.strip()
             if pattern.text is None:
                 value = ""
             else:
                 value = pattern.text.strip()
             patternlist.append(jube2.pattern.Pattern(name, value, pattern_mode,
-                                                     content_type, unit))
+                                                     content_type, unit,
+                                                     default))
         return patternlist
 
     def _extract_filesets(self, etree):
@@ -1277,24 +1283,28 @@ class XMLParser(object):
                     raise ValueError("Empty filelist in <{0}> found."
                                      .format(etree_file.tag))
                 files = etree_file.text.strip().split(separator)
-                if alt_name is None:
-                    # Use the original filenames
-                    names = [os.path.basename(path.strip()) for path in files]
-                else:
+                if alt_name is not None:
                     # Use the new alternativ filenames
                     names = [name.strip() for name in
                              alt_name.split(jube2.conf.DEFAULT_SEPARATOR)]
-                if len(names) != len(files):
-                    raise ValueError("Namelist and filelist must have same " +
-                                     "length in <{0}>".format(etree_file.tag))
+                    if len(names) != len(files):
+                        raise ValueError("Namelist and filelist must have " +
+                                         "same length in <{0}>".
+                                         format(etree_file.tag))
+                else:
+                    names = None
                 for i, file_path in enumerate(files):
                     path = os.path.join(directory, file_path.strip())
+                    if names is not None:
+                        name = names[i]
+                    else:
+                        name = None
                     if etree_file.tag == "copy":
                         file_obj = jube2.fileset.Copy(
-                            path, names[i], is_internal_ref)
+                            path, name, is_internal_ref)
                     elif etree_file.tag == "link":
                         file_obj = jube2.fileset.Link(
-                            path, names[i], is_internal_ref)
+                            path, name, is_internal_ref)
                     if file_path_ref is not None:
                         file_obj.file_path_ref = \
                             os.path.expandvars(os.path.expanduser(

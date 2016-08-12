@@ -136,7 +136,8 @@ def info(args):
                 for step_name in args.step:
                     jube2.info.print_step_info(
                         benchmark, step_name,
-                        parametrization_only=args.parametrization)
+                        parametrization_only=args.parametrization,
+                        parametrization_only_csv=args.csv_parametrization)
 
 
 def update_check(args):
@@ -460,7 +461,8 @@ def _benchmark_result(benchmark_folder, args, result_list=None):
     if benchmark is None:
         return result_list
 
-    if (args.tag is not None) and (len(benchmark.tags & set(args.tag)) == 0):
+    if (args.update is None) and (args.tag is not None) and \
+            (len(benchmark.tags & set(args.tag)) == 0):
         return result_list
 
     # Update benchmark data
@@ -692,6 +694,9 @@ def _get_args_parser():
             ("-s", "--step"):
                 {"help": "show information for given step", "nargs": "+"},
             ("-p", "--parametrization"):
+                {"help": "display only parametrization of given step",
+                 "action": "store_true"},
+            ("-c", "--csv-parametrization"):
                 {"help": "display only parametrization of given step " +
                  "using csv format", "action": "store_true"}
         }
@@ -795,12 +800,25 @@ def _get_args_parser():
             for names, arg in subparser_config["arguments"].items():
                 subparser[name].add_argument(*names, **arg)
 
+    # create help key word overview
+    help_keys = sorted(jube2.help.HELP)
+    max_word_length = max(map(len, help_keys)) + 4
+    # calculate max number of keyword columns
+    max_columns = jube2.conf.DEFAULT_WIDTH // max_word_length
+    # fill keyword list to match number of columns
+    help_keys += [""] * (len(help_keys) % max_columns)
+    help_keys = list(zip(*[iter(help_keys)] * max_columns))
+    # create overview
+    help_overview = jube2.util.text_table(help_keys, separator="   ",
+                                          align_right=False)
+
     # help subparser
     subparser["help"] = \
-        subparsers.add_parser('help', help='command help',
-                              description="available commands or " +
-                              "info elements: " +
-                              ", ".join(sorted(jube2.help.HELP)))
+        subparsers.add_parser(
+            'help', help='command help',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description="available commands or info elements: \n" +
+            help_overview)
     subparser["help"].add_argument('command', nargs='?',
                                    help="command or info element")
     subparser["help"].set_defaults(func=command_help)

@@ -76,6 +76,7 @@
 <!ATTLIST pattern       name CDATA #REQUIRED
                         type (int|string|float) #IMPLIED
                         mode CDATA #IMPLIED
+                        default CDATA #IMPLIED
                         unit CDATA #IMPLIED
                         tag CDATA #IMPLIED>
 <!ELEMENT step ((use|do|include)*)>
@@ -84,6 +85,7 @@
                         max_async CDATA #IMPLIED
                         depend CDATA #IMPLIED
                         export (true|false|True|False) #IMPLIED
+                        active CDATA #IMPLIED
                         work_dir CDATA #IMPLIED
                         shared CDATA #IMPLIED
                         tag CDATA #IMPLIED>
@@ -123,7 +125,6 @@
 <!ATTLIST column        colw CDATA #IMPLIED
                         format CDATA #IMPLIED
                         title CDATA #IMPLIED
-                        null_value CDATA #IMPLIED
                         tag CDATA #IMPLIED>
 <!ELEMENT syslog ((key|include)*)>
 <!ATTLIST syslog        name CDATA #REQUIRED
@@ -137,7 +138,6 @@
 <!ELEMENT key (#PCDATA)>
 <!ATTLIST key           format CDATA #IMPLIED
                         title CDATA #IMPLIED
-                        null_value CDATA #IMPLIED
                         tag CDATA #IMPLIED>
 <!ELEMENT file (#PCDATA)>
 <!ATTLIST file          tag CDATA #IMPLIED

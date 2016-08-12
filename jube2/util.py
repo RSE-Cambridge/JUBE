@@ -146,7 +146,7 @@ def text_line():
 
 
 def text_table(entries_ext, use_header_line=False, indent=1, align_right=True,
-               auto_linebreak=True, colw=None, pretty=True, separator=",",
+               auto_linebreak=True, colw=None, pretty=True, separator=None,
                transpose=False):
     """Create a ASCII based table.
     entries must contain a list of lists, use_header_line can be used to
@@ -222,10 +222,16 @@ def text_table(entries_ext, use_header_line=False, indent=1, align_right=True,
                     ("{0:" + align + str(max_length[i]) + "s}").format(text)
                 if pretty:
                     if i < len(max_length) - 1:
-                        line_str += " | "
+                        if separator is None:
+                            line_str += " | "
+                        else:
+                            line_str += separator
                 else:
                     if i < len(max_length) - 1:
-                        line_str += separator
+                        if separator is None:
+                            line_str += ","
+                        else:
+                            line_str += separator
             line_str += "\n"
             table_str += line_str
             height += 1
@@ -288,7 +294,10 @@ def convert_type(value_type, value, stop=True):
     result_value = None
     try:
         if value_type == "int":
-            result_value = int(float(value))
+            if value == "nan":
+                result_value = float("nan")
+            else:
+                result_value = int(float(value))
         elif value_type == "float":
             result_value = float(value)
         else:
@@ -298,12 +307,7 @@ def convert_type(value_type, value, stop=True):
             raise ValueError(("\"{0}\" can't be represented as a \"{1}\"")
                              .format(value, value_type))
         else:
-            if value_type == "int":
-                result_value = int()
-            elif value_type == "float":
-                result_value = float()
-            LOGGER.warning(("\"{0}\" can't be represented as a \"{1}\"")
-                           .format(value, value_type))
+            result_value = value
     return result_value
 
 
@@ -315,19 +319,28 @@ def script_evaluation(cmd, script_type):
         cmd = "perl -e \"print " + cmd + "\""
         sub = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, shell=True)
-        return sub.communicate()[0]
+        return sub.communicate()[0].decode()
     elif script_type == "shell":
         sub = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, shell=True)
-        return sub.communicate()[0]
+        return sub.communicate()[0].decode()
 
 
 def eval_bool(cmd):
     """Evaluate a bool expression"""
     if cmd.lower() == "true":
         return True
+    elif cmd.lower() == "false":
+        return False
     else:
-        return bool(eval(cmd))
+        try:
+            return bool(eval(cmd))
+        except SyntaxError as se:
+            raise ValueError(("\"{0}\" couldn't be evaluated and handled as " +
+                              "boolean value. Check if all parameter were " +
+                              "correctly replaced and the syntax of the " +
+                              "expression is well formed ({1}).")
+                             .format(cmd, str(se)))
 
 
 def print_loading_bar(current_cnt, all_cnt, second_cnt=0):
