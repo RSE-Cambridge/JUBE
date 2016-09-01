@@ -65,14 +65,14 @@ config = {'name': 'JUBE',
           'url': 'www.fz-juelich.de/jube',
           'download_url': 'www.fz-juelich.de/jube',
           'author_email': 'jube.jsc@fz-juelich.de',
-          'version': '2.1.2',
+          'version': '2.1.3',
           'packages': ['jube2','jube2.result_types'],
           'package_data': {'jube2': ['help.txt']},
           'data_files': ([(os.path.join(SHARE_PATH, 'docu'),
                            ['docs/JUBE.pdf']),
                           (SHARE_PATH, ['LICENSE','RELEASE_NOTES'])] +
                          rel_path("examples", SHARE_PATH) +
-                         rel_path("schema", SHARE_PATH) +
+                         rel_path("contrib", SHARE_PATH) +
                          rel_path("platform", SHARE_PATH)),
           'scripts': ['bin/jube', 'bin/jube-autorun'],
           'long_description': (

@@ -19,7 +19,7 @@ analyser_tag
         <use from="">...</use>
         ...
         <analyse step="...">
-          <file>...</file>
+          <file use="">...</file>
         </analyse>
         ...
       </analyser>
@@ -39,6 +39,14 @@ analyser_tag
    * the step-attribute contains an existing stepname
 
    * each file using each workpackage will be scanned seperatly
+
+   * the "use" argument inside the "<file>" tag is optional and can
+     be used to specify a file specific patternset;
+
+     * the global "<use>" and this local use will be combined and
+       evaluated at the same time
+
+     * a "from```subargument is not possible in this local ``use"
 
    * "reduce" is optional (default: "true" )
 
@@ -365,6 +373,9 @@ jube_variables
 
      * "$jube_benchmark_id": current benchmark id
 
+     * "$jube_benchmark_padid": current benchmark id with preceding
+       zeros
+
      * "$jube_benchmark_home": original input file location
 
      * "$jube_benchmark_start": benchmark starting time
@@ -379,6 +390,8 @@ jube_variables
    * Workpackage:
 
      * "$jube_wp_id": current workpackage id
+
+     * "$jube_wp_padid": current workpackage id with preceding zeros
 
      * "$jube_wp_iteration": current iteration number (default: 0)
 
@@ -490,7 +503,7 @@ parameter_tag
      * inside the parameter definition, a parameter can be reused:
        "... $nameofparameter ..."
 
-     * the parameter will be replaced multiply times (to handle
+     * the parameter will be replaced multiple times (to handle
        complex parameter structures; max: 5 times)
 
      * the substitution will be run before the execution step starts
@@ -734,7 +747,7 @@ step_tag
    A step give a list of *Shell* operations and a corresponding
    parameter environment.
 
-      <step name="..." depend="..." work_dir="..." shared="..." active="..." export="..." max_async="..." iterations="...">
+      <step name="..." depend="..." work_dir="..." suffix="..." shared="..." active="..." export="..." max_async="..." iterations="...">
         <use from="">...</use>
         ...
         <do></do>
@@ -773,6 +786,10 @@ step_tag
        his own
 
      * no automatic parent/children link creation
+
+   * "suffix" is optional and can contain a string (parameters are
+     allowed) which will be attached to the default workpackage
+     directory name
 
    * "active" is optional
 
