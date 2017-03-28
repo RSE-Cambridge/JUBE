@@ -25,6 +25,8 @@ from jube2.result import Result
 import jube2.log
 import xml.etree.ElementTree as ET
 import operator
+import jube2.util.util
+import jube2.util.output
 
 LOGGER = jube2.log.get_logger(__name__)
 
@@ -224,8 +226,13 @@ class KeyValuesResult(Result):
         # Sort the resultset
         if len(self._sort_names) > 0:
             LOGGER.debug("sort using: {0}".format(",".join(self._sort_names)))
-            sort_data = sorted(sort_data,
-                               key=operator.itemgetter(*self._sort_names))
+            # Use CompType for sorting to allow comparison of None values
+            sort_data = \
+                sorted(sort_data,
+                       key=lambda x:
+                       [jube2.util.util.CompType(i)
+                        for i in [x[sort_name]
+                                  for sort_name in self._sort_names]])
 
         # Create table data
         table_data = list()
@@ -235,7 +242,7 @@ class KeyValuesResult(Result):
             for key in self._keys:
                 if key.name in dataset:
                     # Cnt number of final entries to avoid complete empty
-                    # result entires
+                    # result entries
                     cnt += 1
                     # Set null value
                     if dataset[key.name] is None:
@@ -243,8 +250,8 @@ class KeyValuesResult(Result):
                     else:
                         # Format data values to create string representation
                         if key.format is not None:
-                            value = jube2.util.format_value(key.format,
-                                                            dataset[key.name])
+                            value = jube2.util.output.format_value(
+                                key.format, dataset[key.name])
                         else:
                             value = str(dataset[key.name])
                     row.append(value)

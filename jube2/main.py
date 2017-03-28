@@ -22,12 +22,14 @@ from __future__ import (print_function,
                         division)
 
 import jube2.jubeio
-import jube2.util
+import jube2.util.util
+import jube2.util.output
 import jube2.conf
 import jube2.info
 import jube2.help
 import jube2.jubetojube2
 import jube2.log
+import jube2.completion
 
 import sys
 import os
@@ -107,6 +109,10 @@ def command_help(args):
     subparser = _get_args_parser()[1]
     if args.command is None:
         subparser["help"].print_help()
+    elif args.command.lower() == "all":
+        for key in sorted(jube2.help.HELP.keys()):
+            print("{0}:".format(key))
+            print(jube2.help.HELP[key])
     else:
         if args.command in jube2.help.HELP:
             if args.command in subparser:
@@ -133,7 +139,11 @@ def info(args):
             if args.step is None:
                 jube2.info.print_benchmark_info(benchmark)
             else:
-                for step_name in args.step:
+                if args.step:
+                    steps = args.step
+                else:
+                    steps = benchmark.steps.keys()
+                for step_name in steps:
                     jube2.info.print_step_info(
                         benchmark, step_name,
                         parametrization_only=args.parametrization,
@@ -195,6 +205,11 @@ def show_log_single(args, benchmark_folder):
     if not_matching:
         jube2.log.log_print("Could not find logs: {0}".format(
             ",".join(not_matching)))
+
+
+def complete(args):
+    """Handle shell completion"""
+    jube2.completion.complete_function_bash(args)
 
 
 def _load_existing_benchmark(args, benchmark_folder, restore_workpackages=True,
@@ -264,12 +279,21 @@ def search_for_benchmarks(args):
     found_benchmarks = list()
     if not os.path.isdir(args.dir):
         raise OSError("Not a directory: \"{0}\"".format(args.dir))
+    all_benchmarks = [
+        os.path.join(args.dir, directory)
+        for directory in os.listdir(args.dir)
+        if os.path.isdir(os.path.join(args.dir, directory))]
+    all_benchmarks.sort()
     if (args.id is not None) and ("all" not in args.id):
         for benchmark_id in args.id:
             if benchmark_id == "last":
-                benchmark_id = jube2.util.get_current_id(args.dir)
+                benchmark_id = jube2.util.util.get_current_id(args.dir)
             # Search for existing benchmark
-            benchmark_folder = jube2.util.id_dir(args.dir, int(benchmark_id))
+            benchmark_id = int(benchmark_id)
+            if benchmark_id < 0:
+                benchmark_id = int(
+                    os.path.basename(all_benchmarks[benchmark_id]))
+            benchmark_folder = jube2.util.util.id_dir(args.dir, benchmark_id)
             if not os.path.isdir(benchmark_folder):
                 raise OSError("Benchmark directory not found: \"{0}\""
                               .format(benchmark_folder))
@@ -284,15 +308,12 @@ def search_for_benchmarks(args):
     else:
         if (args.id is not None) and ("all" in args.id):
             # Add all available benchmark folder
-            found_benchmarks = [
-                os.path.join(args.dir, directory)
-                for directory in os.listdir(args.dir)
-                if os.path.isdir(os.path.join(args.dir, directory))]
+            found_benchmarks = all_benchmarks
         else:
             # Get highest benchmark id
-            benchmark_id = jube2.util.get_current_id(args.dir)
+            benchmark_id = jube2.util.util.get_current_id(args.dir)
             # Restart existing benchmark
-            benchmark_folder = jube2.util.id_dir(args.dir, benchmark_id)
+            benchmark_folder = jube2.util.util.id_dir(args.dir, benchmark_id)
             if os.path.isdir(benchmark_folder):
                 found_benchmarks.append(benchmark_folder)
             else:
@@ -356,6 +377,11 @@ def run_new_benchmark(args):
             bench = benchmarks[bench_name]
             # Set user defined id
             if (args.id is not None) and (len(args.id) > id_cnt):
+                if args.id[id_cnt] < 0:
+                    LOGGER.warning("Negative ids are not allowed. Skipping id "
+                                   "'{}'.".format(args.id[id_cnt]))
+                    id_cnt += 1
+                    continue
                 bench.id = args.id[id_cnt]
                 id_cnt += 1
             bench.new_run()
@@ -440,8 +466,9 @@ def _analyse_benchmark(benchmark_folder, args):
     jube2.log.change_logfile_name(os.path.join(
         benchmark_folder, jube2.conf.LOGFILE_ANALYSE_NAME))
 
-    LOGGER.info(jube2.util.text_boxed(("Analyse benchmark \"{0}\" id: {1}")
-                                      .format(benchmark.name, benchmark.id)))
+    LOGGER.info(jube2.util.output.text_boxed(
+        ("Analyse benchmark \"{0}\" id: {1}").format(benchmark.name,
+                                                     benchmark.id)))
     benchmark.analyse()
     if os.path.isfile(
             os.path.join(benchmark_folder, jube2.conf.ANALYSE_FILENAME)):
@@ -450,7 +477,7 @@ def _analyse_benchmark(benchmark_folder, args):
     else:
         LOGGER.info(">>> Analyse data storage \"{0}\" not created!".format(
             os.path.join(benchmark_folder, jube2.conf.ANALYSE_FILENAME)))
-    LOGGER.info(jube2.util.text_line())
+    LOGGER.info(jube2.util.output.text_line())
 
     # Reset logging
     jube2.log.only_console_log()
@@ -557,29 +584,11 @@ def _manipulate_comment(benchmark_folder, args):
     benchmark.comment = re.sub(r"\s+", " ", comment)
     benchmark.write_benchmark_configuration(
         os.path.join(benchmark_folder,
-                     jube2.conf.CONFIGURATION_FILENAME))
+                     jube2.conf.CONFIGURATION_FILENAME), outpath="..")
 
 
-def _get_args_parser():
-    """Create argument parser"""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-V", "--version", help="show version",
-                        action="version",
-                        version="JUBE, version {0}".format(
-                            jube2.conf.JUBE_VERSION))
-    parser.add_argument("-v", "--verbose",
-                        help="enable verbose console output (use -vv to " +
-                             "show stdout during execution and -vvv to " +
-                             "show log and stdout)",
-                        action="count", default=0)
-    parser.add_argument("--debug", action="store_true",
-                        help='use debugging mode')
-    parser.add_argument("--force", action="store_true",
-                        help='skip version check')
-    parser.add_argument("--devel", action="store_true",
-                        help='show development related information')
-    subparsers = parser.add_subparsers(dest="subparser", help='subparsers')
-
+def gen_subparser_conf():
+    """Generate dict with subparser information"""
     subparser_configuration = dict()
 
     # run subparser
@@ -700,7 +709,7 @@ def _get_args_parser():
                 {"help": "use benchmarks given by id",
                  "nargs": "+"},
             ("-s", "--step"):
-                {"help": "show information for given step", "nargs": "+"},
+                {"help": "show information for given step", "nargs": "*"},
             ("-p", "--parametrization"):
                 {"help": "display only parametrization of given step",
                  "action": "store_true"},
@@ -795,6 +804,44 @@ def _get_args_parser():
         }
     }
 
+    # completion subparser
+    subparser_configuration["complete"] = {
+        "help": "generate shell completion "
+                'usage: eval "$(jube complete)"',
+        "func": complete,
+        "arguments": {
+            ('--command-name', "-c"):
+                {"nargs": 1,
+                 "help": "name of command to be completed",
+                 "default": [os.path.basename(sys.argv[0])]},
+        }
+    }
+
+    return subparser_configuration
+
+
+def _get_args_parser():
+    """Create argument parser"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-V", "--version", help="show version",
+                        action="version",
+                        version="JUBE, version {0}".format(
+                            jube2.conf.JUBE_VERSION))
+    parser.add_argument("-v", "--verbose",
+                        help="enable verbose console output (use -vv to " +
+                             "show stdout during execution and -vvv to " +
+                             "show log and stdout)",
+                        action="count", default=0)
+    parser.add_argument("--debug", action="store_true",
+                        help='use debugging mode')
+    parser.add_argument("--force", action="store_true",
+                        help='skip version check')
+    parser.add_argument("--devel", action="store_true",
+                        help='show development related information')
+    subparsers = parser.add_subparsers(dest="subparser", help='subparsers')
+
+    subparser_configuration = gen_subparser_conf()
+
     # create subparser out of subparser configuration
     subparser = dict()
     for name, subparser_config in subparser_configuration.items():
@@ -809,7 +856,7 @@ def _get_args_parser():
                 subparser[name].add_argument(*names, **arg)
 
     # create help key word overview
-    help_keys = sorted(jube2.help.HELP)
+    help_keys = sorted(list(jube2.help.HELP) + ["ALL"])
     max_word_length = max(map(len, help_keys)) + 4
     # calculate max number of keyword columns
     max_columns = jube2.conf.DEFAULT_WIDTH // max_word_length
@@ -817,8 +864,8 @@ def _get_args_parser():
     help_keys += [""] * (len(help_keys) % max_columns)
     help_keys = list(zip(*[iter(help_keys)] * max_columns))
     # create overview
-    help_overview = jube2.util.text_table(help_keys, separator="   ",
-                                          align_right=False)
+    help_overview = jube2.util.output.text_table(help_keys, separator="   ",
+                                                 align_right=False)
 
     # help subparser
     subparser["help"] = \
@@ -851,7 +898,7 @@ def main(command=None):
 
     # Set new umask if JUBE_GROUP_NAME is used
     current_mask = os.umask(0)
-    if (jube2.util.check_and_get_group_id() is not None) and \
+    if (jube2.util.util.check_and_get_group_id() is not None) and \
             (current_mask > 2):
         current_mask = 2
     os.umask(current_mask)

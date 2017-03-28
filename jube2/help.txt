@@ -115,13 +115,17 @@ copy_tag
    A copy can be used to copy a file or directory from your normal
    filesytem to your sandbox work directory.
 
-      <copy directory="..." name="..." rel_path_ref="..." separator="...">...</copy>
+      <copy source_dir="..." target_dir="..." name="..." rel_path_ref="..." separator="..." active="...">...</copy>
 
-   * "directory" is optional, it can be used if you want to copy
-     several files inside the same directory
+   * "source_dir" is optional, will be used as a prefix for the
+     source filenames
+
+   * "target_dir" is optional, will be used as a prefix for the
+     target filenames
 
    * "name" is optional, it can be used to rename the file inside
-     your work directory
+     your work directory (will be ignored if you use shell extensions
+     in your pathname)
 
    * "rel_path_ref" is optional
 
@@ -131,6 +135,13 @@ copy_tag
 
      * "internal": rel.-pathes based on current work directory (e.g.
        to link files of another step)
+
+   * "active" is optional
+
+     * can be set to "true" or "false" or any *Python* parsable bool
+       expression to enable or disable the single command
+
+     * *parameter* are allowed inside this attribute
 
    * each copy-tag can contain a list of filenames (or directories),
      separated by ",", the default separator can be changed by using
@@ -378,6 +389,9 @@ jube_variables
 
      * "$jube_benchmark_home": original input file location
 
+     * "$jube_benchmark_rundir": main benchmark specific execution
+       directory
+
      * "$jube_benchmark_start": benchmark starting time
 
    * Step:
@@ -426,13 +440,17 @@ link_tag
    A link can be used to create a symbolic link from your sandbox work
    directory to a file or directory inside your normal filesystem.
 
-      <link directory="..." name="..." rel_path_ref="..." separator="...">...</link>
+      <link source_dir="..." target_dir="..." name="..." rel_path_ref="..." separator="..." active="...">...</link>
 
-   * "directory" is optional, it can be used if you want to link
-     several files inside the same directory
+   * "source_dir" is optional, will be used as a prefix for the
+     source filenames
+
+   * "target_dir" is optional, will be used as a prefix for the
+     target filenames
 
    * "name" is optional, it can be used to rename the file inside
-     your work directory
+     your work directory (will be ignored if you use shell extensions
+     in your pathname)
 
    * "rel_path_ref" is optional
 
@@ -442,6 +460,13 @@ link_tag
 
      * "internal": rel.-pathes based on current work directory (e.g.
        to link files of another step)
+
+   * "active" is optional
+
+     * can be set to "true" or "false" or any *Python* parsable bool
+       expression to enable or disable the single command
+
+     * *parameter* are allowed inside this attribute
 
    * each link-tag can contain a list of filenames (or directories),
      separated by ",", the default separator can be changed by using
@@ -633,11 +658,11 @@ patternset_tag
 prepare_tag
    The prepare can contain any *Shell* command you want. It will be
    executed like a normal *<do>* inside the step where the
-   coresspoding fileset is used. The only difference towards the
+   corresponding fileset is used. The only difference towards the
    normal do is, that it will be executed **before** the substitution
    will be executed.
 
-      <prepare stdout="..." stderr="..." work_dir="...">...</prepare>
+      <prepare stdout="..." stderr="..." work_dir="..." active="...">...</prepare>
 
    * "stdout"- and "stderr"-filename are optional (default: "stdout"
      and "stderr")
@@ -645,6 +670,13 @@ prepare_tag
    * "work_dir" is optional, it can be used to change the work
      directory of this single command (relativly seen towards the
      original work directory)
+
+   * "active" is optional
+
+     * can be set to "true" or "false" or any *Python* parsable bool
+       expression to enable or disable the single command
+
+     * *parameter* are allowed inside this attribute
 
 remove
    The given benchmark will be removed.

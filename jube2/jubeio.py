@@ -35,10 +35,11 @@ import jube2.pattern
 import jube2.workpackage
 import jube2.analyser
 import jube2.step
-import jube2.util
+import jube2.util.util
+import jube2.util.output
 import jube2.conf
-import jube2.result_types.table
 import jube2.result_types.syslog
+import jube2.result_types.table
 import sys
 import re
 import copy
@@ -96,8 +97,8 @@ class XMLParser(object):
         # be broken if there is a special char inside the input file.
         # In such cases the encode will stop, using an UnicodeEncodeError
         try:
-            xml = jube2.util.element_tree_tostring(tree.getroot(),
-                                                   encoding="UTF-8")
+            xml = jube2.util.output.element_tree_tostring(tree.getroot(),
+                                                          encoding="UTF-8")
             xml.encode(sys.getfilesystemencoding())
         except UnicodeEncodeError as uee:
             raise ValueError("Your terminal only allow '{0}' encoding. {1}"
@@ -193,7 +194,8 @@ class XMLParser(object):
             XMLParser._check_tag(element, valid_tags)
 
         # Check for remaing <include> tags
-        node = jube2.util.get_tree_element(tree.getroot(), tag_path="include")
+        node = jube2.util.util.get_tree_element(tree.getroot(),
+                                                tag_path="include")
         if node is not None:
             raise ValueError(("Remaining include element found, which " +
                               "wasn't replaced (e.g. due to a missing " +
@@ -302,7 +304,7 @@ class XMLParser(object):
         LOGGER.debug("  Preprocess benchmark xml tree")
 
         # Search for <use from=""></use> and load external set
-        uses = jube2.util.get_tree_elements(benchmark_etree, "use")
+        uses = jube2.util.util.get_tree_elements(benchmark_etree, "use")
         files = dict()
         for use in uses:
             from_str = use.get("from", "").strip()
@@ -362,8 +364,8 @@ class XMLParser(object):
         file_path = self._find_include_file(filename)
         etree = ET.parse(file_path).getroot()
         XMLParser._remove_invalid_tags(etree, self._tags)
-        found_set = jube2.util.get_tree_elements(etree,
-                                                 attribute_dict={"name": name})
+        found_set = jube2.util.util.get_tree_elements(
+            etree, attribute_dict={"name": name})
 
         found_set = [set_etree for set_etree in found_set
                      if set_etree.tag in ("parameterset", "substituteset",
@@ -383,12 +385,13 @@ class XMLParser(object):
         found in file"""
         tree = ET.parse(self._filename).getroot()
         tags = set()
-        for tag_etree in jube2.util.get_tree_elements(tree, "selection/tag"):
+        for tag_etree in jube2.util.util.get_tree_elements(tree,
+                                                           "selection/tag"):
             if tag_etree.text is not None:
                 tags.update(set([tag.strip() for tag in
                                  tag_etree.text.split(
                                      jube2.conf.DEFAULT_SEPARATOR)]))
-        benchmark_etree = jube2.util.get_tree_element(tree, "benchmark")
+        benchmark_etree = jube2.util.util.get_tree_element(tree, "benchmark")
         if benchmark_etree is None:
             raise ValueError("benchmark-tag not found in \"{0}\"".format(
                 self._filename))
@@ -409,8 +412,8 @@ class XMLParser(object):
         LOGGER.debug("Parsing {0}".format(self._filename))
         tree = ET.parse(self._filename).getroot()
         analyse_result = dict()
-        analyser = jube2.util.get_tree_elements(tree, "analyzer")
-        analyser += jube2.util.get_tree_elements(tree, "analyser")
+        analyser = jube2.util.util.get_tree_elements(tree, "analyzer")
+        analyser += jube2.util.util.get_tree_elements(tree, "analyser")
         for analyser_etree in analyser:
             analyser_name = XMLParser._attribute_from_element(
                 analyser_etree, "name")
@@ -438,7 +441,8 @@ class XMLParser(object):
                             value = value.strip()
                         else:
                             value = ""
-                        value = jube2.util.convert_type(pattern_type, value)
+                        value = jube2.util.util.convert_type(pattern_type,
+                                                             value)
                         analyse_result[analyser_name][step_name][
                             wp_id][pattern_name] = value
         return analyse_result
@@ -513,7 +517,7 @@ class XMLParser(object):
             workpackage.history.add_parameterset(workpackage.parameterset)
 
         # Store workpackage data
-        work_stat = jube2.util.WorkStat()
+        work_stat = jube2.util.util.WorkStat()
         for step_name in benchmark.steps:
             workpackages[step_name] = list()
         # First put started wps inside the queue
@@ -1025,11 +1029,11 @@ class XMLParser(object):
         result_set = None
 
         # Find element in XML-tree
-        elements = jube2.util.get_tree_elements(etree, set_type,
-                                                {"name": search_name})
+        elements = jube2.util.util.get_tree_elements(etree, set_type,
+                                                     {"name": search_name})
         # Element can also be the root element itself
         if etree.tag == set_type:
-            element = jube2.util.get_tree_element(
+            element = jube2.util.util.get_tree_element(
                 etree, attribute_dict={"name": search_name})
             if element is not None:
                 elements.append(element)
@@ -1272,7 +1276,14 @@ class XMLParser(object):
             if etree_file.tag in ["copy", "link"]:
                 separator = etree_file.get(
                     "separator", jube2.conf.DEFAULT_SEPARATOR)
-                directory = etree_file.get("directory", default="").strip()
+                source_dir = etree_file.get("directory", default="").strip()
+                # New source_dir attribute overwrites deprecated directory
+                # attribute
+                source_dir_new = etree_file.get("source_dir")
+                target_dir = etree_file.get("target_dir", default="").strip()
+                if source_dir_new is not None:
+                    source_dir = source_dir_new.strip()
+                active = etree_file.get("active", "true").strip()
                 file_path_ref = etree_file.get("file_path_ref")
                 alt_name = etree_file.get("name")
                 # Check if the filepath is relativly seen to working dir or the
@@ -1295,17 +1306,19 @@ class XMLParser(object):
                 else:
                     names = None
                 for i, file_path in enumerate(files):
-                    path = os.path.join(directory, file_path.strip())
+                    path = file_path.strip()
                     if names is not None:
                         name = names[i]
                     else:
                         name = None
                     if etree_file.tag == "copy":
                         file_obj = jube2.fileset.Copy(
-                            path, name, is_internal_ref)
+                            path, name, is_internal_ref, active, source_dir,
+                            target_dir)
                     elif etree_file.tag == "link":
                         file_obj = jube2.fileset.Link(
-                            path, name, is_internal_ref)
+                            path, name, is_internal_ref, active, source_dir,
+                            target_dir)
                     if file_path_ref is not None:
                         file_obj.file_path_ref = \
                             os.path.expandvars(os.path.expanduser(
@@ -1325,9 +1338,11 @@ class XMLParser(object):
                 alt_work_dir = etree_file.get("work_dir")
                 if alt_work_dir is not None:
                     alt_work_dir = alt_work_dir.strip()
+                active = etree_file.get("active", "true").strip()
+
                 prepare_obj = jube2.fileset.Prepare(cmd, stdout_filename,
                                                     stderr_filename,
-                                                    alt_work_dir)
+                                                    alt_work_dir, active)
                 filelist.append(prepare_obj)
         return filelist
 
